@@ -1,68 +1,87 @@
 import logo from './logo.svg';
 import './App.css';
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
+
+const API_URL = 'https://api.openweathermap.org/data/2.5/weather?';
+const ICON_URL = 'http://openweathermap.org/img/wn/';
+const API_KEY = '';
 
 export default function App() {
-  const [weight, setWeight] = useState(0);
-  const [bottles, setBottles] = useState(0);
-  const [time, setTime] = useState(0);
-  const [gender, setGender] = useState('male');
+  const [lat, setLat] = useState(0);
+  const [lng, setLng] = useState(0);
 
-  const [alco, setAlco] = useState(0);
-
-  function genderMult() {
-    if(gender === "male") return 0.7;
-    if(gender === "female") return 0.6;
-  }
-
-  function handleSubmit(e) {
-    e.preventDefault();
-    const litres = bottles * 0.33;
-    const grams = litres * 8 * 4.5;
-    const burning = weight / 10;
-    const gramsLeft = grams - (burning * time);
-
-    let alco = gramsLeft / (weight * genderMult())
-
-    setAlco(alco.toFixed(2));
-  }
-  
+  useEffect(() => {
+    if(navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(position => {
+        setLat(position.coords.latitude);
+        setLng(position.coords.longitude);
+      }, (error) => {
+        alert(error);
+      })
+    } else {
+      alert('Your browser does not support geolocation!')
+    }
+  }, [])
 
   return (
     <div>
-      <h3>Calculation blood alcohol level</h3>
-      <Form submit={handleSubmit} 
-            weight={setWeight} 
-            bottles={setBottles} 
-            time={setTime}
-            gender={setGender}/>
-      <div>
-        <p>{alco}</p>
-      </div>
+      <Location lat={lat} long={lng} />
+      <Weather lat={lat} lng={lng}/>
     </div>
   )
 }
 
-function Form(props) {
+function Location(props) {
 
   return (
-    <form onSubmit={props.submit}>
-        <label for="weight">Weight</label>
-        <input id="weight" type="number" onChange={e => props.weight(e.target.value)}/>
-        <br />
-        <label for="bottles">Bottles</label>
-        <input id="bottles" type="number" onChange={e => props.bottles(e.target.value)}/>
-        <br />
+    <p>
+      <b>Position</b><br/>
+      Latitude: {props.lat.toFixed(3)}<br/>
+      Longitude: {props.long.toFixed(3)}
+    </p>
+  );
+}
 
-        <label for="time">Time</label>
-        <input id="time" type="number" onChange={e => props.time(e.target.value)}/>
-        <br />
+function Weather({lat, lng}) {
+  const [temp, setTemp] = useState(0);
+  const [speed, setSpeed] = useState(0);
+  const [direction, setDir] = useState(0);
+  const [desc, setDesc] = useState('');
+  const [icon, setIcon] = useState('');
 
-        <label>Gender</label>
-        <input id="male" type="radio" name="gender" value="male" onChange={e => props.gender(e.target.value)} checked/><label for="male">Male</label>
-        <input id="female" type="radio" name="gender" value="female" onChange={e => props.gender(e.target.value)}/><label for="female">Female</label>
+  useEffect(() => {
+    const url = API_URL +
+    'lat=' + lat +
+    '&lon=' + lng +
+    '&units=metric' +
+    '&appid=' + API_KEY;
 
-        <button>Calculate</button>
-      </form>
-  )
+    fetch(url)
+    .then(res => res.json())
+    .then(
+      (result) => {
+        if(result.main !== undefined) {
+          setTemp(result.main.temp);
+          setSpeed(result.wind.speed);
+          setDir(result.wind.deg);
+          setDesc(result.weather[0].description);
+          setIcon(ICON_URL + result.weather[0].icon + '@2px.png');
+        } else {
+          alert('Could not read weather information!');
+        }
+      }, (error) => {
+        alert(error);
+      }
+    )
+  }, [])
+
+  return (
+    <div>
+      <b>Weather:</b><br/>
+      <p>Temperature: {temp} C&#176;</p>
+      <p>Wind: {speed} m/s {direction} degrees</p>
+      <p>Description: {desc}</p>
+      <img src={icon} alt="" />
+    </div>
+  );
 }
